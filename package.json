@@ -1,0 +1,27 @@
+{
+  "name": "googlesheet_ganttchart",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dist": "node lib/generate.googlesheets_ganttchart.js > dist/code.js && echo 'created dist file in dist/code.js'",
+    "test": "mocha test/googlesheets_ganttchart_spec.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "clear-require": "^2.0.0",
+    "faker": "^4.1.0",
+    "fs-jetpack": "^1.2.0",
+    "js-beautify": "^1.7.4",
+    "mocha": "^4.0.1",
+    "moment": "^2.19.1",
+    "moment-business": "^3.0.1",
+    "require-from-string": "^2.0.1"
+  }
+}
