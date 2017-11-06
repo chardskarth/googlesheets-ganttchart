@@ -55,8 +55,30 @@ function GetStartDates(startDate, taskDurations, holidays){
   });
 }
 
-function GetChartHeader(){
+function GetChartHeader(startDate, endDate, repeat){
+  if(!repeat){
+    repeat = 2;
+  }
+  startDate = _toMoment(startDate);
+  endDate = _toMoment(endDate);
+  if(startDate.diff(endDate) > 0){
+    throw new Error('startDate cannot be greater than endDate');
+  }
 
+  var retVal = [[], [], []];
+  var dayNumber = 1;
+  while(!startDate.isSame(endDate)){
+    if(momentBusiness.isWeekDay(startDate)){
+      for(var ii = 0; ii < repeat; ii++){
+        retVal[0].push(dayNumber);
+        retVal[1].push(startDate.format('ddd'));
+        retVal[2].push(startDate.format('MM/DD'));
+      }
+      dayNumber++;
+    }
+    startDate.add(1, 'days');
+  }
+  return retVal;
 }
 
 function GetChart(){
