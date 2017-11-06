@@ -3,11 +3,11 @@ let HOUR_IN_A_DAY = 8;
 let MINIMUM_HOUR_INTERVAL = 4;
 
 let _oldAddWeekDays = momentBusiness.addWeekDays;
-momentBusiness.addWeekDays = function(moment, daysToAdd, holidays) {
+momentBusiness.addWeekDays = function(moment, daysToAdd) {
   return _oldAddWeekDays.call(momentBusiness, moment, daysToAdd);
 }
 
-momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidays) {
+momentBusiness.addWeekDayHours = function(moment, hoursToAdd) {
   if (hoursToAdd > HOUR_IN_A_DAY) {
     throw new Error('hoursToAdd in addWeekDayHours cannot be greater than HOUR_IN_A_DAY');
   }
@@ -15,30 +15,46 @@ momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidays) {
   let hoursSince = _hoursPassed(moment);
   let overlappingHours = hoursSince - HOUR_IN_A_DAY
   if (overlappingHours > 0) {
-    // console.log('adding overlapping hours', overlappingHours);
-    momentBusiness.addWeekDays(moment, 1, holidays);
+    momentBusiness.addWeekDays(moment, 1);
     moment.startOf('day');
-    momentBusiness.addWeekDayHours(moment, overlappingHours, holidays);
+    momentBusiness.addWeekDayHours(moment, overlappingHours);
   }
   if (_hoursPassed(moment) == HOUR_IN_A_DAY) {
     moment.startOf('day');
-    momentBusiness.addWeekDays(moment, 1, holidays);
+    momentBusiness.addWeekDays(moment, 1);
   }
 }
 
+momentBusiness.checkAddHolidays = function(before, after, holidays) {
+  let taskRange = moment.range(before, after);
+  let daysToAdd = 0;
+  holidays.forEach((holidayRange) => {
+    let intersectRange = holidayRange.intersect(taskRange);
+    if (intersectRange) {
+      for (let day of intersectRange.by('day')) {
+        if (momentBusiness.isWeekDay(day)) {
+          daysToAdd++;
+        }
+      }
+    }
+  });
+  return momentBusiness.addWeekDays(after, daysToAdd);
+}
+
 function GetStartDates(startDate, taskDurations, holidays) {
-  let latestDate = __toMoment(startDate);
+  let latestDate = _toMoment(startDate);
+  holidays = _parseHolidays(holidays);
   return taskDurations.map((taskDuration) => {
     let {
       days,
       total,
       dayHourRemainder
-    } = __parseTaskDuration(taskDuration);
-    // console.log(`task takes total of ${total} hour/s.`);
-    // console.log(`adding ${days} days. and ${dayHourRemainder} hours`);
-    momentBusiness.addWeekDays(latestDate, days, holidays);
-    momentBusiness.addWeekDayHours(latestDate, dayHourRemainder, holidays);
-    let hoursSince = _hoursPassed(latestDate);
+    } = _parseTaskDuration(taskDuration);
+    let momentBefore = latestDate.clone();
+    momentBusiness.addWeekDays(latestDate, days);
+    momentBusiness.addWeekDayHours(latestDate, dayHourRemainder);
+    momentBusiness.checkAddHolidays(momentBefore, latestDate, holidays);
+
     return [`${latestDate.format('MM/DD/YYYY')}`];
   });
 }
@@ -56,10 +72,22 @@ function _hoursPassed(moment) {
   return moment.diff(startOfDayMoment, 'hours');
 }
 
-function __toMoment(toMoment) {
+function _toMoment(toMoment) {
   var retVal = moment(toMoment, 'MM/DD/YYYY', true);
   retVal.startOf('day');
   return retVal;
+}
+
+function _parseHolidays(holidays) {
+  return (holidays || []).map(([from, to]) => {
+    from = _toMoment(from);
+    if (to) {
+      to = _toMoment(to);
+    } else {
+      to = from;
+    }
+    return moment.range(from, to);
+  });
 }
 
 /**
@@ -67,7 +95,7 @@ function __toMoment(toMoment) {
  * where hr and offset are integers and should be both divisible by MINIMUM_HOUR_INTERVAL
  * @param {*} taskDuration 
  */
-function __parseTaskDuration(taskDuration) {
+function _parseTaskDuration(taskDuration) {
   let [duration, offset] = taskDuration.map((x) => x || 0);
   let total = duration + offset;
   let days = Math.floor(total / HOUR_IN_A_DAY);

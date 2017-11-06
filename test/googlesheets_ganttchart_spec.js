@@ -22,9 +22,8 @@ describe('main project module', function(){
       let sampleHolidays = [ [ '06/18/1993', '06/22/1993' ],
         [ '06/25/1993', '06/29/1993' ],
         [ '07/01/1993', undefined ] ]; //util.createHolidays(3, '06/15/1993');
-      console.log(sampleHolidays);
       let retVal = testModule.GetStartDates('06/15/1993', sampleTaskDurations, sampleHolidays);
-      expect(retVal).to.deep.equal([ [ '06/17/1993' ], [ '06/24/1993' ], [ '06/30/1993' ] ]);
+      expect(retVal).to.deep.equal([ [ '06/17/1993' ], [ '06/29/1993' ], [ '07/06/1993' ] ]);
     });
   });
 })
