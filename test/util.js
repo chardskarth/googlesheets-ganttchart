@@ -10,7 +10,7 @@ exports.createTaskDurations = function(taskCount){
 exports.createHolidays = function(holidayCount, startDate){
   startDate = moment(startDate, 'MM/DD/YYYY', true);
   return Array.from(Array(holidayCount)).map(() => {
-    console.log('holidayCount', holidayCount);
+    
     let interval = faker.random.number(3) + faker.random.number(2);
     let duration = faker.random.number(5);
     startDate.add(interval, 'days');

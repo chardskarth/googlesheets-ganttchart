@@ -45,4 +45,14 @@ describe('main project module', function(){
           '06/24', '06/25', '06/25', '06/28', '06/28', '06/29', '06/29' ] ])
     });
   });
+
+  describe("GetTotalDays", function(){
+    let testModule = requireFromString(require(MAIN_MODULE_ID));
+    it("returns an expected result", function(){
+      let sampleHolidays = [ [ '06/19/1993', undefined ], [ '06/23/1993', '06/28/1993' ] ]
+      //util.createHolidays(2, '06/15/1993');
+      let result = testModule.GetTotalDays('06/15/1993', '06/30/1993', sampleHolidays);
+      expect(result).to.equal(7);
+    });
+  });
 })

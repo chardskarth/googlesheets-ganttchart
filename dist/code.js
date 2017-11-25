@@ -2,43 +2,28 @@ loadMoment();
 let HOUR_IN_A_DAY = 8;
 let MINIMUM_HOUR_INTERVAL = 4;
 
-let _oldAddWeekDays = momentBusiness.addWeekDays;
-momentBusiness.addWeekDays = function(moment, daysToAdd) {
-  return _oldAddWeekDays.call(momentBusiness, moment, daysToAdd);
-}
-
-momentBusiness.addWeekDayHours = function(moment, hoursToAdd) {
-  if (hoursToAdd > HOUR_IN_A_DAY) {
-    throw new Error('hoursToAdd in addWeekDayHours cannot be greater than HOUR_IN_A_DAY');
-  }
-  moment.add(hoursToAdd, 'hours');
-  let hoursSince = _hoursPassed(moment);
-  let overlappingHours = hoursSince - HOUR_IN_A_DAY
-  if (overlappingHours > 0) {
-    momentBusiness.addWeekDays(moment, 1);
-    moment.startOf('day');
-    momentBusiness.addWeekDayHours(moment, overlappingHours);
-  }
-  if (_hoursPassed(moment) == HOUR_IN_A_DAY) {
-    moment.startOf('day');
-    momentBusiness.addWeekDays(moment, 1);
-  }
-}
-
-momentBusiness.checkAddHolidays = function(before, after, holidays) {
-  let taskRange = moment.range(before, after);
-  let daysToAdd = 0;
-  holidays.forEach((holidayRange) => {
-    let intersectRange = holidayRange.intersect(taskRange);
-    if (intersectRange) {
-      for (let day of intersectRange.by('day')) {
-        if (momentBusiness.isWeekDay(day)) {
-          daysToAdd++;
-        }
-      }
+momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidayRanges) {
+  while (hoursToAdd) {
+    if (isMomentWithinRanges(moment, holidayRanges)) {
+      addOneDayCheckHoliday(moment, holidayRanges);
     }
-  });
-  return momentBusiness.addWeekDays(after, daysToAdd);
+    if (hoursToAdd >= HOUR_IN_A_DAY) {
+      hoursToAdd -= HOUR_IN_A_DAY;
+      addOneDayCheckHoliday(moment, holidayRanges);
+    } else {
+      moment.add(hoursToAdd, 'hours');
+      let hoursSince = _hoursPassed(moment);
+      let overlappingHours = hoursSince - HOUR_IN_A_DAY
+      if (overlappingHours > 0) {
+        addOneDayCheckHoliday(moment, holidayRanges);
+      }
+      if (_hoursPassed(moment) == HOUR_IN_A_DAY) {
+        addOneDayCheckHoliday(moment, holidayRanges);
+        moment.startOf('day');
+      }
+      hoursToAdd = 0;
+    }
+  }
 }
 
 function GetStartDates(startDate, taskDurations, holidays) {
@@ -46,21 +31,54 @@ function GetStartDates(startDate, taskDurations, holidays) {
   holidays = _parseHolidays(holidays);
   return taskDurations.map((taskDuration) => {
     let {
-      days,
-      total,
-      dayHourRemainder
+      totalHours
     } = _parseTaskDuration(taskDuration);
     let momentBefore = latestDate.clone();
-    momentBusiness.addWeekDays(latestDate, days);
-    momentBusiness.addWeekDayHours(latestDate, dayHourRemainder);
-    momentBusiness.checkAddHolidays(momentBefore, latestDate, holidays);
-
+    momentBusiness.addWeekDayHours(latestDate, totalHours, holidays);
     return [`${latestDate.format('MM/DD/YYYY')}`];
   });
 }
 
-function GetChartHeader() {
+function GetChartHeader(startDate, endDate, repeat) {
+  if (!repeat) {
+    repeat = 2;
+  }
+  startDate = _toMoment(startDate);
+  endDate = _toMoment(endDate);
+  if (startDate.diff(endDate) > 0) {
+    throw new Error('startDate cannot be greater than endDate');
+  }
 
+  var retVal = [
+    [],
+    [],
+    []
+  ];
+  var dayNumber = 1;
+  while (!startDate.isSame(endDate)) {
+    if (momentBusiness.isWeekDay(startDate)) {
+      for (var ii = 0; ii < repeat; ii++) {
+        retVal[0].push(dayNumber);
+        retVal[1].push(startDate.format('ddd'));
+        retVal[2].push(startDate.format('MM/DD'));
+      }
+      dayNumber++;
+    }
+    startDate.add(1, 'days');
+  }
+  return retVal;
+}
+
+function GetTotalDays(startDate, endDate, holidays) {
+  startDate = _toMoment(startDate);
+  endDate = _toMoment(endDate);
+  holidays = _parseHolidays(holidays);
+  let count = 0;
+  while (!startDate.isSame(endDate)) {
+    addOneDayCheckHoliday(startDate, holidays)
+    count++;
+  }
+  return count;
 }
 
 function GetChart() {
@@ -84,10 +102,29 @@ function _parseHolidays(holidays) {
     if (to) {
       to = _toMoment(to);
     } else {
-      to = from;
+      to = from.clone();
     }
-    return moment.range(from, to);
+    return moment.range(from, to.endOf('day'));
   });
+}
+
+function isMomentWithinRanges(moment, ranges) {
+  return ranges.some((range) => {
+    let retVal = range.contains(moment);
+    if (retVal) {}
+    return retVal;
+  });
+}
+
+function addOneDayCheckHoliday(moment, holidayRanges) {
+  momentBusiness.addWeekDays(moment, 1);
+  let isAValidDay = () => {
+    let isWithinHoliday = isMomentWithinRanges(moment, holidayRanges);
+    return !isWithinHoliday && momentBusiness.isWeekDay(moment);
+  };
+  while (!isAValidDay()) {
+    momentBusiness.addWeekDays(moment, 1);
+  }
 }
 
 /**
@@ -97,15 +134,14 @@ function _parseHolidays(holidays) {
  */
 function _parseTaskDuration(taskDuration) {
   let [duration, offset] = taskDuration.map((x) => x || 0);
-  let total = duration + offset;
-  let days = Math.floor(total / HOUR_IN_A_DAY);
-  let dayHourRemainder = total % HOUR_IN_A_DAY;
+  let totalHours = duration + offset;
+  let hourRemainder = totalHours % HOUR_IN_A_DAY;
   return {
-    total,
-    days,
-    dayHourRemainder
+    totalHours,
+    hourRemainder
   }
 }
+
 
 function loadMoment() {
   eval(UrlFetchApp.fetch('https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js').getContentText());

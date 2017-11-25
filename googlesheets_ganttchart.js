@@ -1,46 +1,26 @@
-let HOUR_IN_A_DAY = 8;
+  let HOUR_IN_A_DAY = 8;
 let MINIMUM_HOUR_INTERVAL = 4;
 
 momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidayRanges){
   while(hoursToAdd){
     if(isMomentWithinRanges(moment, holidayRanges)){
-      addOneDayCheckHoliday(moment);
+      addOneDayCheckHoliday(moment, holidayRanges);
     }
     if(hoursToAdd >= HOUR_IN_A_DAY){
       hoursToAdd -= HOUR_IN_A_DAY;
-      addOneDayCheckHoliday(moment);
+      addOneDayCheckHoliday(moment, holidayRanges);
     } else {
       moment.add(hoursToAdd, 'hours');
       let hoursSince = _hoursPassed(moment);
       let overlappingHours = hoursSince - HOUR_IN_A_DAY
       if(overlappingHours > 0){
-        addOneDayCheckHoliday(moment);
+        addOneDayCheckHoliday(moment, holidayRanges);
       }
       if(_hoursPassed(moment) == HOUR_IN_A_DAY){
-        addOneDayCheckHoliday(moment);
+        addOneDayCheckHoliday(moment, holidayRanges);
         moment.startOf('day');
       }
       hoursToAdd = 0;
-    }
-  }
-
-  function isMomentWithinRanges(moment, ranges){
-    return ranges.some((range) => {
-        let retVal = range.contains(moment);
-        if(retVal){
-        }
-        return retVal;
-    });
-  }
-
-  function addOneDayCheckHoliday(moment){
-    momentBusiness.addWeekDays(moment, 1);
-    let isAValidDay = () => {
-      let isWithinHoliday = isMomentWithinRanges(moment, holidayRanges);
-      return !isWithinHoliday && momentBusiness.isWeekDay(moment);
-    };
-    while(!isAValidDay()){
-      momentBusiness.addWeekDays(moment, 1);
     }
   }
 }
@@ -82,6 +62,18 @@ function GetChartHeader(startDate, endDate, repeat){
   return retVal;
 }
 
+function GetTotalDays(startDate, endDate, holidays){
+  startDate = _toMoment(startDate);
+  endDate = _toMoment(endDate);
+  holidays = _parseHolidays(holidays);
+  let count = 0;
+  while(!startDate.isSame(endDate)){
+    addOneDayCheckHoliday(startDate, holidays)
+    count++;
+  }
+  return count;
+}
+
 function GetChart(){
 
 }
@@ -107,6 +99,26 @@ function _parseHolidays(holidays){
     }
     return moment.range(from, to.endOf('day'));
   });
+}
+
+function isMomentWithinRanges(moment, ranges){
+  return ranges.some((range) => {
+      let retVal = range.contains(moment);
+      if(retVal){
+      }
+      return retVal;
+  });
+}
+
+function addOneDayCheckHoliday(moment, holidayRanges){
+  momentBusiness.addWeekDays(moment, 1);
+  let isAValidDay = () => {
+    let isWithinHoliday = isMomentWithinRanges(moment, holidayRanges);
+    return !isWithinHoliday && momentBusiness.isWeekDay(moment);
+  };
+  while(!isAValidDay()){
+    momentBusiness.addWeekDays(moment, 1);
+  }
 }
 
 /**
