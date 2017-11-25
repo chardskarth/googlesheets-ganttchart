@@ -1,5 +1,5 @@
-  let HOUR_IN_A_DAY = 8;
-let MINIMUM_HOUR_INTERVAL = 4;
+var HOUR_IN_A_DAY = 8;
+var HOUR_INTERVAL = 4;
 
 momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidayRanges){
   while(hoursToAdd){
@@ -11,8 +11,8 @@ momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidayRanges){
       addOneDayCheckHoliday(moment, holidayRanges);
     } else {
       moment.add(hoursToAdd, 'hours');
-      let hoursSince = _hoursPassed(moment);
-      let overlappingHours = hoursSince - HOUR_IN_A_DAY
+      var hoursSince = _hoursPassed(moment);
+      var overlappingHours = hoursSince - HOUR_IN_A_DAY
       if(overlappingHours > 0){
         addOneDayCheckHoliday(moment, holidayRanges);
       }
@@ -26,11 +26,10 @@ momentBusiness.addWeekDayHours = function(moment, hoursToAdd, holidayRanges){
 }
 
 function GetStartDates(startDate, taskDurations, holidays){
-  let latestDate = _toMoment(startDate);
+  var latestDate = _toMoment(startDate);
   holidays = _parseHolidays(holidays);
   return taskDurations.map((taskDuration) => {
-    let {totalHours} = _parseTaskDuration(taskDuration);
-    let momentBefore = latestDate.clone();
+    var {totalHours} = _parseTaskDuration(taskDuration);
     momentBusiness.addWeekDayHours(latestDate, totalHours, holidays);
     return [`${latestDate.format('MM/DD/YYYY')}`];
   });
@@ -66,7 +65,7 @@ function GetTotalDays(startDate, endDate, holidays){
   startDate = _toMoment(startDate);
   endDate = _toMoment(endDate);
   holidays = _parseHolidays(holidays);
-  let count = 0;
+  var count = 0;
   while(!startDate.isSame(endDate)){
     addOneDayCheckHoliday(startDate, holidays)
     count++;
@@ -74,23 +73,73 @@ function GetTotalDays(startDate, endDate, holidays){
   return count;
 }
 
-function GetChart(){
+function GetChart(startDate, endDate, taskDurations, taskStatus, holidays){ 
+  var offset = 0;
+  var today = _toMoment();
+  startDate = _toMoment(startDate);
+  endDate = _toMoment(endDate);
+  holidays = _parseHolidays(holidays);
+  var rowsToIterate = (GetTotalDays(startDate.clone(), endDate, holidays) * HOUR_IN_A_DAY) / HOUR_INTERVAL;
 
+  return taskDurations.map((taskDuration, taskIndex) => {
+    var row = [];
+    var {minimumHourIntervalCount} = _parseTaskDuration(taskDuration);
+    var hourIntervalCountCopy = minimumHourIntervalCount;
+    for (var ii = 0; ii < rowsToIterate; ii++) {
+      var currentMoment = iterationToCurrentMoment(ii, startDate);
+      var currentTaskStatus = (taskStatus[taskIndex] || '').toString();
+      if(isMomentWithinRanges(currentMoment, holidays)){
+        toPush = 'holiday';
+      } else if(ii >= offset && minimumHourIntervalCount){
+        if(currentTaskStatus === 'Completed'){
+          toPush = 'completed';
+        } else if(currentTaskStatus === 'Issue'){
+          toPush = 'issue';
+        } else {
+          toPush = 'pending';
+        }
+        minimumHourIntervalCount--;
+      } else if(currentMoment.isSame(today, 'day')){
+        toPush = 'today';
+      } else {
+        toPush = 'nothing';
+      }
+      row.push(toPush);
+    }
+    offset += hourIntervalCountCopy;
+    return row;
+  });
+
+  function iterationToCurrentMoment(ii, startDate){
+    var daysToAdd = parseInt((ii * HOUR_INTERVAL) / HOUR_IN_A_DAY);
+    return momentBusiness.addWeekDays(startDate.clone(), daysToAdd);
+  }
 }
 
 function _hoursPassed(moment){
-  let startOfDayMoment = moment.clone().startOf('day');
+  var startOfDayMoment = moment.clone().startOf('day');
   return moment.diff(startOfDayMoment, 'hours');
 }
 
 function _toMoment(toMoment){
-  var retVal = moment(toMoment, 'MM/DD/YYYY', true);
-  retVal.startOf('day');
+  var retVal 
+  if(!toMoment){
+    retVal = moment();
+  } else if(moment.isMoment(toMoment)){
+    retVal = toMoment;
+  } else {
+    retVal = moment(toMoment, 'MM/DD/YYYY', true);
+    retVal.startOf('day');
+  }
   return retVal;
 }
 
 function _parseHolidays(holidays){
-  return (holidays || []).map(([from, to]) => {
+  holidays = (holidays || []);
+  if(holidays.isParsedHolidays){
+    return holidays;
+  }
+  var retVal = holidays.map(([from, to]) => {
     from = _toMoment(from);
     if(to){
       to = _toMoment(to);
@@ -99,11 +148,13 @@ function _parseHolidays(holidays){
     }
     return moment.range(from, to.endOf('day'));
   });
+  retVal.isParsedHolidays = true;
+  return retVal;
 }
 
 function isMomentWithinRanges(moment, ranges){
   return ranges.some((range) => {
-      let retVal = range.contains(moment);
+      var retVal = range.contains(moment);
       if(retVal){
       }
       return retVal;
@@ -112,8 +163,8 @@ function isMomentWithinRanges(moment, ranges){
 
 function addOneDayCheckHoliday(moment, holidayRanges){
   momentBusiness.addWeekDays(moment, 1);
-  let isAValidDay = () => {
-    let isWithinHoliday = isMomentWithinRanges(moment, holidayRanges);
+  var isAValidDay = () => {
+    var isWithinHoliday = isMomentWithinRanges(moment, holidayRanges);
     return !isWithinHoliday && momentBusiness.isWeekDay(moment);
   };
   while(!isAValidDay()){
@@ -123,12 +174,16 @@ function addOneDayCheckHoliday(moment, holidayRanges){
 
 /**
  * a taskDuration should be in the format of [hr, offset]
- * where hr and offset are integers and should be both divisible by MINIMUM_HOUR_INTERVAL
+ * where hr and offset are integers and should be both divisible by HOUR_INTERVAL
  * @param {*} taskDuration 
  */
 function _parseTaskDuration(taskDuration){
-  let [duration, offset] = taskDuration.map((x) => x || 0);
-  let totalHours = duration + offset;
-  let hourRemainder = totalHours % HOUR_IN_A_DAY;
-  return {totalHours, hourRemainder}
+  var [duration, offset] = taskDuration.map((x) => x || 0);
+  var totalHours = duration + offset;
+  var hourRemainder = totalHours % HOUR_IN_A_DAY;
+  if(totalHours % HOUR_INTERVAL != 0){
+    throw new Error("Task duration must be by " + HOUR_INTERVAL + ' hour interval');
+  }
+  var minimumHourIntervalCount = totalHours / HOUR_INTERVAL;
+  return {totalHours, hourRemainder, minimumHourIntervalCount}
 }

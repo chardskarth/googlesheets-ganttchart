@@ -32,6 +32,13 @@ describe('main project module', function(){
       let retVal = testModule.GetStartDates('11/06/2017', sampleTaskDurations, sampleHolidays);
       expect(retVal).to.deep.equal([ [ '11/21/2017' ], [ '11/22/2017' ], [ '11/28/2017' ], [ '12/01/2017' ], [ '12/04/2017' ] ]);
     });
+    it("throws when task duration is not by 4 hour interval", function(){
+      let shouldThrow = () => {
+        let sampleTaskDurations = [[1, 2]];
+        testModule.GetStartDates('11/06/2017', sampleTaskDurations, []);
+      }
+      expect(shouldThrow).to.throw("Task duration must be by 4 hour interval")
+    });
   });
 
   describe("GetChartHeader", function(){
@@ -53,6 +60,56 @@ describe('main project module', function(){
       //util.createHolidays(2, '06/15/1993');
       let result = testModule.GetTotalDays('06/15/1993', '06/30/1993', sampleHolidays);
       expect(result).to.equal(7);
+    });
+  });
+
+  describe("GetChart", function(){
+    let testModule = requireFromString(require(MAIN_MODULE_ID));
+    it("returns an expected result", function(){
+      let sampleHolidays = [ [ '11/28/2017', '11/30/2017' ],
+        [ '12/02/2017', '12/04/2017' ],
+        [ '12/09/2017', undefined ],
+        [ '12/13/2017', '12/21/2017' ] ];//util.createHolidays(4, '11/25/2017');//'06/15/1993'); //
+      let sampleTaskDurations = [ [ 36, 28 ], [ 24, 24 ], [ 24, 32 ], [ 12, 8 ], [ 16, 40 ] ];//util.createTaskDurations(5, 3, 10);
+      let sampleTaskStatus = ['Completed', 'Completed', 'Issue', 'Pending', 'asdfasdf'];
+      let result = testModule.GetChart('11/25/2017', '01/30/2018', sampleTaskDurations, sampleTaskStatus, sampleHolidays);
+      expect(result).to.deep.equal([
+        [
+          "completed", "completed", "completed", "completed", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "completed", "completed", "holiday", "holiday", "completed", "completed",
+          "completed", "completed", "completed", "completed", "completed", "completed", "completed", "completed", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday",
+          "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing"
+        ],
+        [
+          "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "holiday", "holiday", "nothing", "nothing",
+          "completed", "completed", "completed", "completed", "completed", "completed", "completed", "completed", "completed", "completed", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday",
+          "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "completed", "completed", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing"
+        ],
+        [
+          "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "holiday", "holiday", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday",
+          "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "issue", "issue", "issue", "issue", "issue", "issue", "issue", "issue", "issue", "issue",
+          "issue", "issue", "issue", "issue", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing"
+        ],
+        [
+          "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "holiday", "holiday", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday",
+          "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "pending", "pending", "pending", "pending", "pending", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing"
+        ],
+        [
+          "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "holiday", "holiday", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday",
+          "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "holiday", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "pending", "pending", "pending",
+          "pending", "pending", "pending", "pending", "pending", "pending", "pending", "pending", "pending", "pending", "pending", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing", "nothing",
+          "nothing", "nothing", "nothing", "nothing"
+        ]
+      ]);
     });
   });
 })
